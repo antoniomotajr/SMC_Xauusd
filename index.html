@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GOLD SMC | Trading Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0c0d14;color:#e5e7eb;font-family:Inter,Arial,sans-serif}
+.gold{color:#d4af37}.muted{color:#858b9d}
+.panel{background:#141621;border:1px solid #272b3a;border-radius:10px}
+.bullish{color:#10b981;background:#10b98115;border:1px solid #10b98140}
+.bearish{color:#ef4444;background:#ef444415;border:1px solid #ef444440}
+.ranging{color:#eab308;background:#eab30815;border:1px solid #eab30840}
+.signal-card{background:#191d2a;border:1px solid #292e40;border-radius:8px;padding:12px}
+.pulse{animation:pulse 1.5s infinite}@keyframes pulse{50%{opacity:.35}}
+#chart{height:calc(100vh - 190px);min-height:440px}
+.scroll-area{overflow-y:auto;scrollbar-width:thin;scrollbar-color:#393e50 transparent}
+select,input{background:#191d2a;border:1px solid #272b3a;border-radius:6px;padding:3px 6px;font-size:11px;color:#e5e7eb}
+@media(max-width:1100px){.main-grid{grid-template-columns:1fr!important}#chart{height:60vh}}
+@media(max-width:640px){.stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+</style>
+</head>
+<body>
+
+<header class="min-h-[65px] border-b border-gray-800 flex flex-wrap gap-3 items-center justify-between px-5 py-3 bg-[#10121b]">
+  <div class="flex items-center gap-3">
+    <div class="w-9 h-9 rounded-lg bg-[#d4af37] flex items-center justify-center text-black font-black">Au</div>
+    <div><h1 class="font-bold tracking-wide text-white">GOLD <span class="gold">SMC</span></h1>
+    <p class="text-[10px] muted tracking-widest">INSTITUTIONAL TRADING TERMINAL</p></div>
+  </div>
+  <div class="flex items-center gap-5 text-xs">
+    <div class="text-right"><p class="muted">MERCADO</p><p id="market-status" class="text-red-400 font-semibold">● VERIFICANDO</p><p id="market-why" class="text-[9px] muted"></p></div>
+    <div class="text-right"><p class="muted">LOCAL / NOVA YORK</p><p class="font-mono text-white"><span id="clock">--:--:--</span> <span class="muted">/</span> <span id="ny-clock">--:--</span></p></div>
+  </div>
+</header>
+
+<section class="px-5 py-3 border-b border-gray-800 flex flex-wrap items-center justify-between gap-3">
+  <div class="flex items-center gap-4">
+    <div><p class="text-xs muted">INSTRUMENTO</p><p class="font-bold text-lg">XAUUSD <span class="text-xs gold">GOLD / USD</span></p></div>
+    <div class="border-l border-gray-700 pl-4"><p class="text-xs muted">PREÇO (FEED)</p><p id="market-price" class="text-xl font-bold gold">--</p></div>
+    <div class="border-l border-gray-700 pl-4"><p class="text-xs muted">VAR. 24H</p><p id="price-change" class="font-semibold">--</p></div>
+  </div>
+  <div class="flex flex-wrap items-center gap-2 text-[10px] muted">
+    FONTE
+    <select id="prov"><option value="binance">PAXG · Binance (grátis)</option><option value="twelve">XAU/USD · Twelve Data (chave)</option><option value="demo">Demo (sintético)</option></select>
+    <input id="key" type="password" placeholder="API key Twelve Data" class="hidden w-40">
+    <label class="flex items-center gap-1"><input id="force" type="checkbox"> forçar aberto (teste)</label>
+  </div>
+</section>
+
+<main class="main-grid grid gap-4 p-4" style="grid-template-columns:minmax(0,7fr) minmax(330px,3fr)">
+<section class="min-w-0">
+  <div class="panel overflow-hidden">
+    <div class="px-4 py-3 flex justify-between border-b border-gray-800">
+      <div><h2 class="text-sm font-bold"><span class="gold">◆</span> TradingView Advanced Chart</h2><p class="text-[10px] muted">FX:XAUUSD · GOLD SPOT</p></div>
+      <span class="text-[10px] muted">VISUAL</span>
+    </div>
+    <div id="chart"></div>
+  </div>
+  <div class="grid stats-grid grid-cols-4 gap-3 mt-3">
+    <div class="panel p-3"><p class="text-[10px] muted">SESSÃO (NY)</p><p id="c-sess" class="font-bold gold mt-1 text-sm">--</p></div>
+    <div class="panel p-3"><p class="text-[10px] muted">PRÓXIMA MUDANÇA</p><p id="c-chg" class="font-bold mt-1 text-sm">--</p></div>
+    <div class="panel p-3"><p class="text-[10px] muted">ESTRATÉGIA ATIVA</p><p id="c-prof" class="font-bold gold mt-1 text-sm">--</p></div>
+    <div class="panel p-3"><p class="text-[10px] muted">FEED / PRÓX. VARREDURA</p><p id="c-feed" class="font-bold mt-1 text-sm">--</p></div>
+  </div>
+  <p class="text-[10px] muted mt-3 px-1">O widget do TradingView é um iframe e não expõe preços nem status de mercado. O status é verificado por horário (NY) + frescor do feed, e o SMC roda sobre os candles do feed escolhido.</p>
+</section>
+
+<aside class="flex flex-col gap-3 min-w-0">
+  <div class="panel p-4">
+    <div class="flex justify-between items-center mb-3">
+      <div><h2 class="font-bold text-base"><span class="gold">◆</span> SMC Signals & Bias</h2><p class="text-[10px] muted">SMART MONEY CONCEPTS ENGINE</p></div>
+      <span id="smc-status" class="text-[10px] text-yellow-400">● STANDBY</span>
+    </div>
+    <button id="scan-button" onclick="scan(true)" class="w-full bg-[#d4af37] hover:bg-[#e5c34f] text-black font-bold text-xs rounded-lg py-3">⌕ FORÇAR VARREDURA SMC</button>
+    <p id="scan-status" class="text-[10px] muted text-center mt-2">Aguardando...</p>
+    <p id="prof-note" class="text-[10px] mt-2 p-2 rounded bg-[#191d2a] text-gray-300"></p>
+  </div>
+
+  <div class="panel p-4">
+    <div class="flex justify-between mb-2"><h3 class="font-bold text-sm">Alerta por e-mail</h3><label class="text-[10px] muted flex items-center gap-1"><input id="m-on" type="checkbox"> ativo</label></div>
+    <div class="grid grid-cols-2 gap-2">
+      <input id="m-to" placeholder="e-mail destino" class="col-span-2">
+      <input id="m-svc" placeholder="Service ID"><input id="m-tpl" placeholder="Template ID">
+      <input id="m-pub" placeholder="Public Key (EmailJS)" class="col-span-2">
+    </div>
+    <button onclick="sendMail(null,true)" class="w-full mt-2 text-[10px] border border-gray-700 rounded py-1.5 hover:border-[#d4af37]">ENVIAR E-MAIL DE TESTE</button>
+    <p id="m-status" class="text-[10px] muted mt-2"></p>
+  </div>
+
+  <div class="panel p-4">
+    <div class="flex justify-between mb-3"><h3 class="font-bold text-sm">Market Bias</h3><span class="text-[10px] muted">MULTI-TIMEFRAME</span></div>
+    <div id="bias-container" class="space-y-2"><p class="text-xs muted">Aguardando análise...</p></div>
+    <div class="mt-3 pt-3 border-t border-gray-800">
+      <div class="flex justify-between text-xs"><span class="muted">Confluência (<span id="conf-side">--</span>)</span><span id="confluence" class="gold font-bold">--%</span></div>
+      <div class="h-1.5 bg-gray-800 rounded-full mt-2 overflow-hidden"><div id="confluence-bar" class="h-full bg-[#d4af37]" style="width:0"></div></div>
+      <p id="conf-why" class="text-[10px] muted mt-2"></p>
+    </div>
+  </div>
+
+  <div class="panel p-4">
+    <div class="flex justify-between mb-3"><h3 class="font-bold text-sm">Points of Interest</h3><span class="text-[10px] muted">OB / FVG / LIQUIDEZ</span></div>
+    <div id="poi-container" class="space-y-2"><p class="text-xs muted">Aguardando análise...</p></div>
+  </div>
+
+  <div class="panel p-4 min-h-[300px]">
+    <div class="flex justify-between mb-3"><h3 class="font-bold text-sm">Sinais Recentes</h3><span class="text-[10px] gold">ANÁLISE · NÃO É RECOMENDAÇÃO</span></div>
+    <div id="signals-container" class="scroll-area space-y-3" style="max-height:470px"></div>
+  </div>
+</aside>
+</main>
+
+<footer class="px-5 py-3 border-t border-gray-800 text-[10px] muted flex justify-between flex-wrap gap-2">
+  <span>GOLD SMC TERMINAL v2.0</span><span>PAXG acompanha o ouro, mas pode divergir do XAUUSD spot e negocia 24/7</span><span>USO EDUCACIONAL — TESTE ANTES DE OPERAR</span>
+</footer>
+
+<script src="https://s3.tradingview.com/tv.js"></script>
+<script>
+if(typeof TradingView!=="undefined"){
+  new TradingView.widget({autosize:true,symbol:"FX:XAUUSD",interval:"60",timezone:"America/Sao_Paulo",theme:"dark",style:"1",locale:"br",toolbar_bg:"#141621",enable_publishing:false,allow_symbol_change:true,withdateranges:true,container_id:"chart"});
+}else document.getElementById("chart").innerHTML='<p class="p-5 text-sm text-red-400">Não foi possível carregar o TradingView.</p>';
+</script>
+
+<script>
+const $=id=>document.getElementById(id);
+const LS="GOLD_SMC_V2",MAXSIG=12,MAXPOI=5;
+const money=n=>Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const hhmm=t=>new Date(t).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+const ld=(k,d)=>{try{return JSON.parse(localStorage.getItem(LS+k))??d}catch(e){return d}};
+const sv=(k,v)=>{try{localStorage.setItem(LS+k,JSON.stringify(v))}catch(e){}};
+
+let CFG=Object.assign({provider:"binance",key:"",force:false,emailOn:true,emailTo:"afmjr67@gmail.com",emailSvc:"service_29p6uhk",emailTpl:"template_bnk02eq",emailPub:"bJ8chYlVo4Nk-7pu0"},ld("_cfg",{}));
+CFG.emailSvc=CFG.emailSvc||"service_29p6uhk";CFG.emailTpl=CFG.emailTpl||"template_bnk02eq";CFG.emailPub=CFG.emailPub||"bJ8chYlVo4Nk-7pu0";CFG.emailTo=CFG.emailTo||"afmjr67@gmail.com";
+const S={open:false,sched:false,stale:false,A:null,prof:null,signals:ld("_sig",[]),next:0,busy:false,passive:false,chg:{at:0},err:"",feedAge:0};
+
+// ================= HORÁRIO / MERCADO =================
+const nyFmt=new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",weekday:"short",hour:"2-digit",minute:"2-digit",month:"2-digit",day:"2-digit",hourCycle:"h23"});
+function ny(d=new Date()){const o={};nyFmt.formatToParts(d).forEach(p=>o[p.type]=p.value);return{wd:o.weekday,min:+o.hour*60+ +o.minute,md:o.month+"-"+o.day}}
+
+// Ouro spot: dom 18:00 NY → sex 17:00 NY, pausa diária 17:00-18:00; fechado 25/12 e 01/01.
+function schedOpen(d){const n=ny(d);
+  if(n.md==="12-25"||n.md==="01-01"||n.wd==="Sat")return false;
+  if(n.wd==="Sun")return n.min>=1080;
+  if(n.wd==="Fri")return n.min<1020;
+  return !(n.min>=1020&&n.min<1080)}
+
+function calcChange(){const now=Date.now(),cur=schedOpen(new Date(now));
+  for(let i=1;i<=10080;i++)if(schedOpen(new Date(now+i*6e4))!==cur){S.chg={at:now+i*6e4,toOpen:!cur};return}
+  S.chg={at:0}}
+
+function sess(){const h=ny().min/60;
+  return{s:h>=19||h<3?"ÁSIA":h<8?"LONDRES":h<17?"NOVA YORK":"PÓS-NY",kz:h>=2&&h<5?"LONDON KZ":h>=7&&h<10?"NY KZ":null}}
+
+// ================= PERFIL DE ESTRATÉGIA =================
+// Ajusta limiar de score, stop (xATR) e RR conforme janela de mercado.
+function getProfile(){const now=Date.now(),{s,kz}=sess();
+  let p={name:"NEUTRO",min:75,sl:1.2,rr:2,allow:true,note:"Sem janela especial: exige confluência alta (≥75)."};
+  if(!S.open)return{...p,name:"BLOQUEADO",allow:false,note:"Mercado fechado ou feed sem dados: nenhuma entrada."};
+  if(!schedOpen(new Date(now+9e5)))return{...p,name:"FECHAMENTO",allow:false,note:"Mercado fecha/pausa em <15 min: sem novas entradas."};
+  if(!schedOpen(new Date(now-18e5)))p={name:"CAUTELA · ABERTURA",min:85,sl:1.8,rr:2,allow:true,note:"Primeiros 30 min após abertura: gaps e spread alto. Score ≥85 e stop 1.8×ATR."};
+  else if(!schedOpen(new Date(now+36e5)))p={name:"CAUTELA · FECHAMENTO",min:85,sl:1.5,rr:2,allow:true,note:"Última hora antes do fechamento: liquidez baixa. Score ≥85."};
+  else if(kz==="LONDON KZ")p={name:"LONDRES · MANIPULAÇÃO",min:65,sl:1.2,rr:2.5,allow:true,note:"Busca sweep da máxima/mínima da Ásia + CHoCH contrário (Judas swing). Score ≥65, alvo 2.5R."};
+  else if(kz==="NY KZ")p={name:"NY · EXPANSÃO",min:65,sl:1.2,rr:3,allow:true,note:"Favorece continuação alinhada a 4H+1H. Score ≥65, alvo 3R."};
+  else if(s==="ÁSIA")p={name:"ÁSIA · ACUMULAÇÃO",min:80,sl:1,rr:2,allow:true,note:"Mercado em range: marca liquidez e só aceita setups fortes (≥80)."};
+  const v=S.A?.vol;
+  if(v&&v<.6){p.min+=10;p.note+=" Volatilidade baixa: +10 no limiar."}
+  if(v&&v>1.8){p.min+=5;p.sl*=1.3;p.note+=" Volatilidade alta (notícia?): stop +30%, limiar +5."}
+  return p}
+
+function refreshMarket(){
+  S.sched=schedOpen(new Date());S.open=CFG.force||(S.sched&&!S.stale);S.prof=getProfile();
+  const st=$("market-status"),why=$("market-why"),ok=S.open;
+  st.innerHTML=ok?'<span class="pulse">●</span> MERCADO ABERTO':"● MERCADO FECHADO";
+  st.className=(ok?"text-emerald-400":"text-red-400")+" font-semibold";
+  why.textContent=CFG.force?"modo teste (horário ignorado)":!S.sched?"fora do horário spot":S.stale?"feed sem candles novos (feriado?)":"horário + feed OK";
+  $("smc-status").textContent=ok?"● READY":"● STANDBY";$("smc-status").className="text-[10px] "+(ok?"text-emerald-400":"text-red-400");
+  const sc=sess();$("c-sess").textContent=sc.s+(sc.kz?" · "+sc.kz:"");
+  $("c-prof").textContent=S.prof.name;$("prof-note").textContent=S.prof.note}
+
+// ================= FEED =================
+async function getJSON(u){const r=await fetch(u);if(!r.ok)throw new Error("HTTP "+r.status);return r.json()}
+function demo(tf){const per=tf==="15m"?9e5:36e5,n=tf==="15m"?300:400;let p=3900,t=Math.floor(Date.now()/per)*per-n*per;const a=[];
+  for(let i=0;i<n;i++){const o=p,c=o+(Math.random()-.5)*6+Math.sin(i/15)*1.2;a.push({t,o,h:Math.max(o,c)+Math.random()*2,l:Math.min(o,c)-Math.random()*2,c});p=c;t+=per}return a}
+async function fetchTF(tf){const per=tf==="15m"?9e5:36e5;let c;
+  if(CFG.provider==="demo")c=demo(tf);
+  else if(CFG.provider==="twelve"){
+    if(!CFG.key)throw new Error("Informe a chave da Twelve Data");
+    const j=await getJSON(`https://api.twelvedata.com/time_series?symbol=XAU/USD&interval=${tf==="15m"?"15min":"1h"}&outputsize=${tf==="15m"?300:400}&order=ASC&timezone=UTC&apikey=${CFG.key}`);
+    if(j.status==="error")throw new Error(j.message);
+    c=j.values.map(v=>({t:Date.parse(v.datetime.replace(" ","T")+"Z"),o:+v.open,h:+v.high,l:+v.low,c:+v.close}))}
+  else{const q=`/api/v3/klines?symbol=PAXGUSDT&interval=${tf}&limit=${tf==="15m"?300:400}`;let k;
+    try{k=await getJSON("https://api.binance.com"+q)}catch(e){k=await getJSON("https://data-api.binance.vision"+q)}
+    c=k.map(x=>({t:x[0],o:+x[1],h:+x[2],l:+x[3],c:+x[4]}))}
+  return c.filter(x=>x.t+per<=Date.now()+1e3)}  // só candles fechados
+function agg4(c){const o=[],P=144e5;c.forEach(x=>{const b=Math.floor(x.t/P)*P,l=o[o.length-1];
+  if(l&&l.t===b){l.h=Math.max(l.h,x.h);l.l=Math.min(l.l,x.l);l.c=x.c}else o.push({...x,t:b})});return o.slice(0,-1)}
+
+// ================= MOTOR SMC =================
+function atr(c,n=14){let s=0,k=0;for(let i=c.length-n;i<c.length;i++){if(i<1)continue;const x=c[i],p=c[i-1];s+=Math.max(x.h-x.l,Math.abs(x.h-p.c),Math.abs(x.l-p.c));k++}return s/k}
+function pivots(c,L){const p=[];for(let i=L;i<c.length-L;i++){let hi=1,lo=1;
+  for(let j=1;j<=L;j++){if(c[i].h<=c[i-j].h||c[i].h<c[i+j].h)hi=0;if(c[i].l>=c[i-j].l||c[i].l>c[i+j].l)lo=0}
+  if(hi)p.push({i,t:"H",v:c[i].h});if(lo)p.push({i,t:"L",v:c[i].l})}return p}
+// BOS = rompimento a favor da tendência; CHoCH = rompimento contra (mudança de caráter). Rompimento por fechamento.
+function structure(c,pv,L){let lH=null,lL=null,bias=null,ev=[],pi=0;
+  for(let k=0;k<c.length;k++){
+    while(pi<pv.length&&pv[pi].i+L<=k){const p=pv[pi++];p.t==="H"?lH=p:lL=p}
+    if(lH&&c[k].c>lH.v){ev.push({dir:"bull",type:bias==="bear"?"CHoCH":"BOS",k,from:lH.i});bias="bull";lH=null}
+    else if(lL&&c[k].c<lL.v){ev.push({dir:"bear",type:bias==="bull"?"CHoCH":"BOS",k,from:lL.i});bias="bear";lL=null}}
+  return{bias,ev}}
+function analyze(c,L,tf){const pv=pivots(c,L),st=structure(c,pv,L),a=atr(c),obs=[],fvg=[];
+  st.ev.slice(-4).forEach(e=>{const bull=e.dir==="bull";let m=e.from;
+    for(let i=e.from;i<=e.k;i++)if(bull?c[i].l<c[m].l:c[i].h>c[m].h)m=i;
+    for(let i=m;i>=Math.max(m-3,0);i--)if(bull?c[i].c<c[i].o:c[i].c>c[i].o){   // última vela contrária = Order Block
+      const z={k:"OB",dir:e.dir,lo:c[i].l,hi:c[i].h,i},af=c.slice(e.k+1);
+      if(!af.some(x=>bull?x.c<z.lo:x.c>z.hi)){z.mit=af.some(x=>bull?x.l<=z.hi:x.h>=z.lo);obs.push(z)}break}});
+  for(let i=Math.max(2,c.length-120);i<c.length;i++){const af=c.slice(i+1);   // Fair Value Gap (3 velas)
+    if(c[i].l>c[i-2].h&&c[i].l-c[i-2].h>.25*a){const z={k:"FVG",dir:"bull",lo:c[i-2].h,hi:c[i].l,i};if(!af.some(x=>x.l<=z.lo)){z.mit=af.some(x=>x.l<z.hi);fvg.push(z)}}
+    if(c[i].h<c[i-2].l&&c[i-2].l-c[i].h>.25*a){const z={k:"FVG",dir:"bear",lo:c[i].h,hi:c[i-2].l,i};if(!af.some(x=>x.h>=z.hi)){z.mit=af.some(x=>x.h>z.lo);fvg.push(z)}}}
+  const poi=[...obs,...fvg];poi.forEach(z=>z.tf=tf);
+  return{c,pv,a,bias:st.bias,ev:st.ev,poi}}
+
+// Liquidez: PDH/PDL (dia de trading vira 17h NY), range da Ásia, topos/fundos iguais.
+function levels(c,pv,a){const L=[],g={},as={};
+  c.forEach(x=>{const k=ny(new Date(x.t-612e5)).md;(g[k]=g[k]||[]).push(x);
+    if(ny(new Date(x.t)).min/60>=19||ny(new Date(x.t)).min/60<3){const q=ny(new Date(x.t+18e6)).md;(as[q]=as[q]||[]).push(x)}});
+  const ks=Object.keys(g),ak=Object.keys(as),mm=r=>[Math.max(...r.map(x=>x.h)),Math.min(...r.map(x=>x.l))];
+  if(ks.length>1){const[h,l]=mm(g[ks[ks.length-2]]);L.push({n:"PDH",v:h,t:"H"},{n:"PDL",v:l,t:"L"})}
+  if(ak.length){const[h,l]=mm(as[ak[ak.length-1]]);L.push({n:"Ásia H",v:h,t:"H"},{n:"Ásia L",v:l,t:"L"})}
+  const rec=pv.filter(p=>p.i>c.length-120);
+  ["H","L"].forEach(t=>{const q=rec.filter(p=>p.t===t);
+    for(let i=q.length-1;i>0;i--){const j=q.slice(0,i).findIndex(x=>Math.abs(x.v-q[i].v)<.15*a);if(j>=0){L.push({n:"EQ"+t,v:(q[i].v+q[j].v)/2,t});break}}});
+  return L}
+function sweeps(c,L){const out=[];
+  for(let i=Math.max(c.length-12,0);i<c.length;i++)L.forEach(l=>{const x=c[i];
+    if(l.t==="H"&&x.h>l.v&&x.c<l.v)out.push({dir:"bear",n:l.n,i});
+    if(l.t==="L"&&x.l<l.v&&x.c>l.v)out.push({dir:"bull",n:l.n,i})});return out}
+
+function evaluate(d,A,prof){const why=[],px=A.price;let sc=0;
+  if(A.h4.bias===d){sc+=25;why.push("Viés 4H")}else if(A.h4.bias)sc-=10;
+  if(A.h1.bias===d){sc+=20;why.push("Viés 1H")}else if(A.h1.bias)sc-=5;
+  const e=[...A.m15.ev].reverse().find(x=>x.dir===d&&x.k>=A.m15.c.length-24);
+  if(e){sc+=20+(e.type==="CHoCH"?5:0);why.push(e.type+" 15M")}
+  const sw=A.sw.find(x=>x.dir===d);if(sw){sc+=15;why.push("Sweep "+sw.n)}
+  const poi=[...A.m15.poi,...A.h1.poi].filter(z=>z.dir===d&&!z.mit&&px>z.lo-A.m15.a&&px<z.hi+A.m15.a)
+    .sort((a,b)=>Math.abs(px-(a.lo+a.hi)/2)-Math.abs(px-(b.lo+b.hi)/2))[0];
+  if(poi){sc+=15;why.push(poi.k+" "+poi.tf)}
+  const disc=px<A.eq;if((d==="bull")===disc){sc+=10;why.push(disc?"Discount":"Premium")}else sc-=5;
+  if(prof.name.startsWith("LONDRES")&&sw&&e)sc+=10;
+  if(prof.name.startsWith("NY")&&A.h1.bias===d&&A.h4.bias===d)sc+=10;
+  return{d,sc:Math.max(0,Math.min(100,sc)),why,poi}}
+
+function makeSignal(A,prof){
+  const r=["bull","bear"].map(d=>evaluate(d,A,prof)).sort((a,b)=>b.sc-a.sc)[0];A.score=r;
+  if(!prof.allow||r.sc<prof.min||!r.poi)return null;
+  const last=S.signals[0];if(last&&last.dir===r.d&&Date.now()-last.ts<27e5)return null;   // cooldown 45 min
+  const buy=r.d==="bull",z=r.poi,entry=(z.lo+z.hi)/2,a=A.m15.a;
+  const stop=buy?Math.min(z.lo-.25*a,entry-prof.sl*a):Math.max(z.hi+.25*a,entry+prof.sl*a),risk=Math.abs(entry-stop);
+  const t=A.lv.filter(l=>buy?(l.t==="H"&&l.v>entry+1.5*risk):(l.t==="L"&&l.v<entry-1.5*risk)).sort((x,y)=>buy?x.v-y.v:y.v-x.v)[0];
+  const target=t?t.v:entry+(buy?1:-1)*risk*prof.rr;
+  return{id:Date.now(),ts:Date.now(),dir:r.d,direction:buy?"BUY":"SELL",entry,stop,target,rr:+(Math.abs(target-entry)/risk).toFixed(1),
+    confidence:r.sc,why:r.why,poi:z.k+" "+z.tf,profile:prof.name,tp:t?t.n:prof.rr+"R"}}
+
+// ================= VARREDURA =================
+async function scan(manual){if(S.busy)return;S.busy=true;
+  const btn=$("scan-button"),st=$("scan-status");btn.disabled=true;btn.classList.add("opacity-60");st.textContent="Buscando candles e analisando estrutura...";
+  try{
+    const[c15,c1]=await Promise.all([fetchTF("15m"),fetchTF("1h")]);
+    if(c15.length<110||c1.length<60)throw new Error("Candles insuficientes");
+    const a15=analyze(c15,3,"15M"),a1=analyze(c1,5,"1H"),a4=analyze(agg4(c1),5,"4H"),lv=levels(c15,a15.pv,a15.a);
+    const lastC=c15[c15.length-1],price=lastC.c;
+    S.feedAge=Date.now()-(lastC.t+9e5);S.stale=!["binance","demo"].includes(CFG.provider)&&S.feedAge>27e5;
+    const A={m15:a15,h1:a1,h4:a4,lv,sw:sweeps(c15,lv),vol:atr(c15,14)/atr(c15.slice(-100),100),price,eq:price,chg:(price/c15[c15.length-97].c-1)*100};
+    const H=[...a1.pv].reverse().find(p=>p.t==="H"),Lo=[...a1.pv].reverse().find(p=>p.t==="L");if(H&&Lo)A.eq=(H.v+Lo.v)/2;
+    S.A=A;S.err="";refreshMarket();
+    const sig=makeSignal(A,S.prof);
+    if(sig&&S.open){S.signals.unshift(sig);S.signals=S.signals.slice(0,MAXSIG);sv("_sig",S.signals);sendMail(sig)}
+    st.textContent=S.open?(sig?"Sinal gerado às "+hhmm(Date.now()):"Varredura às "+hhmm(Date.now())+" · sem setup válido para o perfil "+S.prof.name):"Mercado fechado: análise passiva, sem sinais.";
+  }catch(e){S.err=e.message;st.textContent="Erro no feed: "+e.message}
+  S.next=Date.now()+(CFG.provider==="twelve"?3e5:6e4);S.busy=false;btn.disabled=false;btn.classList.remove("opacity-60");render()}
+
+// ================= RENDER =================
+const bc=v=>v==="bull"?"bullish":v==="bear"?"bearish":"ranging";
+function render(){const A=S.A;if(!A)return;
+  $("market-price").textContent=money(A.price);
+  $("price-change").textContent=(A.chg>=0?"+":"")+A.chg.toFixed(2)+"%";$("price-change").className=(A.chg>=0?"text-emerald-400":"text-red-400")+" font-semibold";
+  $("bias-container").innerHTML=[["4H",A.h4],["1H",A.h1],["15M",A.m15]].map(([tf,x])=>{const e=x.ev[x.ev.length-1];
+    return`<div class="flex items-center justify-between p-2 rounded-lg ${bc(x.bias)}"><div class="flex gap-3"><span class="font-bold text-xs">${tf}</span><span class="text-[10px] opacity-70">${e?e.type+" · "+(x.c.length-1-e.k)+" velas":"--"}</span></div><span class="font-bold text-xs">${x.bias==="bull"?"▲ BULLISH":x.bias==="bear"?"▼ BEARISH":"◆ RANGING"}</span></div>`}).join("");
+  const r=A.score;$("confluence").textContent=r.sc+"%";$("confluence-bar").style.width=r.sc+"%";
+  $("conf-side").textContent=r.d==="bull"?"BUY":"SELL";$("conf-why").textContent=r.why.join(" · ")||"Sem confluências";
+  const poi=[...A.m15.poi,...A.h1.poi,...A.h4.poi].sort((a,b)=>Math.abs(A.price-(a.lo+a.hi)/2)-Math.abs(A.price-(b.lo+b.hi)/2)).slice(0,MAXPOI);
+  const liq=A.lv.map(l=>`${l.n} ${money(l.v)}`).join(" · ");
+  $("poi-container").innerHTML=poi.map(z=>`<div class="bg-[#191d2a] rounded-lg p-3 border border-gray-800"><div class="flex justify-between"><span class="text-xs font-bold"><span class="gold">◆</span> ${z.k==="OB"?"ORDER BLOCK":"FAIR VALUE GAP"}</span><span class="text-[9px] muted">${z.tf}</span></div><div class="flex justify-between mt-2"><div><p class="text-[10px] font-bold ${z.dir==="bull"?"text-emerald-400":"text-red-400"}">${z.dir==="bull"?"BULLISH":"BEARISH"}</p><p class="text-[10px] muted">${money(z.lo)} — ${money(z.hi)}</p></div><span class="text-[9px] ${z.mit?"text-yellow-400":"text-emerald-400"}">${z.mit?"MITIGADO":"ATIVO"}</span></div></div>`).join("")+(liq?`<p class="text-[10px] muted pt-1">Liquidez: ${liq}</p>`:"");
+  renderSignals()}
+function renderSignals(){const c=$("signals-container");
+  if(!S.signals.length){c.innerHTML='<p class="text-xs muted text-center py-6">Nenhum sinal registrado.</p>';return}
+  c.innerHTML=S.signals.map(s=>{const b=s.direction==="BUY";
+    return`<div class="signal-card border-l-2 ${b?"border-l-emerald-500":"border-l-red-500"}"><div class="flex justify-between"><span class="font-bold text-xs ${b?"text-emerald-400":"text-red-400"}">${b?"▲ COMPRA":"▼ VENDA"} · ${s.poi}</span><span class="text-[9px] muted">${hhmm(s.ts)}</span></div>
+    <div class="flex justify-between mt-1"><span class="text-[10px] muted">${s.profile}</span><span class="text-[9px] gold">${s.confidence}% CONF.</span></div>
+    <p class="text-[10px] muted mt-1">${(s.why||[]).join(" · ")}</p>
+    <div class="grid grid-cols-3 gap-2 mt-3"><div><p class="text-[9px] muted">ENTRY</p><p class="text-[11px] font-mono font-bold">${money(s.entry)}</p></div><div><p class="text-[9px] muted">STOP</p><p class="text-[11px] font-mono text-red-400">${money(s.stop)}</p></div><div><p class="text-[9px] muted">ALVO (${s.tp})</p><p class="text-[11px] font-mono text-emerald-400">${money(s.target)}</p></div></div>
+    <div class="mt-3 pt-2 border-t border-gray-700 flex justify-between text-[10px]"><span class="muted">Risk / Reward</span><span class="gold font-bold">1:${s.rr}</span></div></div>`}).join("")}
+
+// ================= LOOP =================
+const fmtD=ms=>{const s=Math.max(0,Math.floor(ms/1e3)),d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);
+  return(d?d+"d ":"")+String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(s%60).padStart(2,"0")};
+let tk=0;
+setInterval(()=>{const now=Date.now();tk++;
+  $("clock").textContent=new Date().toLocaleTimeString("pt-BR");
+  $("ny-clock").textContent=new Date().toLocaleTimeString("en-US",{timeZone:"America/New_York",hour12:false,hour:"2-digit",minute:"2-digit"});
+  if(S.chg.at)$("c-chg").textContent=(S.chg.toOpen?"Abre em ":"Fecha em ")+fmtD(S.chg.at-now);
+  const wait=S.next-now;
+  $("c-feed").textContent=(CFG.provider==="binance"?"PAXG":CFG.provider==="twelve"?"XAU":"DEMO")+" · "+(S.err?"erro":S.open&&wait>0?Math.ceil(wait/1e3)+"s":S.open?"analisando":"pausado");
+  if(tk%60===1)calcChange();
+  if(tk%15===0||tk===1){const was=S.open;refreshMarket();if(!was&&S.open)S.next=now+2e3}
+  if(S.busy)return;
+  if((S.sched||CFG.force)&&now>=S.next)scan();
+  else if(!(S.sched||CFG.force)&&!S.passive){S.passive=true;scan()}
+},1000);
+
+// ================= E-MAIL (EmailJS) =================
+async function sendMail(s,test){const m=$("m-status");
+  if(!test&&!CFG.emailOn)return;
+  if(!CFG.emailSvc||!CFG.emailTpl||!CFG.emailPub||!CFG.emailTo){m.textContent="Preencha destino, Service ID, Template ID e Public Key.";return}
+  const g=s||{direction:"TESTE",entry:0,stop:0,target:0,rr:0,confidence:0,why:[],poi:"-",profile:"-",tp:"-"};
+  const msg=`XAUUSD ${g.direction} (${g.profile})\nEntrada: ${money(g.entry)}\nStop: ${money(g.stop)}\nAlvo (${g.tp}): ${money(g.target)}\nRisk/Reward: 1:${g.rr}\nConfiança: ${g.confidence}%\nSetup: ${g.poi} · ${(g.why||[]).join(", ")}\nHorário: ${new Date().toLocaleString("pt-BR")}\n\nAnálise educacional, não é recomendação.`;
+  try{const r=await fetch("https://api.emailjs.com/api/v1.0/email/send",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({service_id:CFG.emailSvc,template_id:CFG.emailTpl,user_id:CFG.emailPub,template_params:{to_email:CFG.emailTo,subject:`GOLD SMC: ${g.direction} XAUUSD`,message:msg}})});
+    m.textContent=r.ok?"E-mail enviado às "+hhmm(Date.now()):"Falha EmailJS: "+await r.text()}
+  catch(e){m.textContent="Falha: "+e.message}}
+
+// ================= CONFIG UI =================
+function applyCfg(){$("prov").value=CFG.provider;$("key").value=CFG.key;$("force").checked=CFG.force;$("key").classList.toggle("hidden",CFG.provider!=="twelve")}
+function saveCfg(){sv("_cfg",CFG);applyCfg();S.next=0;S.passive=false;S.err="";S.stale=false;refreshMarket()}
+$("prov").onchange=e=>{CFG.provider=e.target.value;S.A=null;saveCfg()};
+$("key").onchange=e=>{CFG.key=e.target.value.trim();saveCfg()};
+$("force").onchange=e=>{CFG.force=e.target.checked;saveCfg()};
+const mf={"m-on":"emailOn","m-svc":"emailSvc","m-tpl":"emailTpl","m-pub":"emailPub","m-to":"emailTo"};
+Object.entries(mf).forEach(([id,k])=>{const el=$(id),cb=el.type==="checkbox";cb?el.checked=!!CFG[k]:el.value=CFG[k]||"";el.onchange=()=>{CFG[k]=cb?el.checked:el.value.trim();sv("_cfg",CFG)}});
+applyCfg();renderSignals();calcChange();refreshMarket();
+</script>
+</body>
+</html>
