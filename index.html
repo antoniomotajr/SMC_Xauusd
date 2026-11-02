@@ -79,7 +79,7 @@ select,input{background:#191d2a;border:1px solid #272b3a;border-radius:6px;paddi
     <p id="prof-note" class="text-[10px] mt-2 p-2 rounded bg-[#191d2a] text-gray-300"></p>
   </div>
 
-  <div class="panel p-4">
+  <div id="mail-panel" class="panel p-4 hidden">
     <div class="flex justify-between mb-2"><h3 class="font-bold text-sm">Alerta por e-mail</h3><label class="text-[10px] muted flex items-center gap-1"><input id="m-on" type="checkbox"> ativo</label></div>
     <div class="grid grid-cols-2 gap-2">
       <input id="m-to" placeholder="e-mail destino" class="col-span-2">
@@ -338,6 +338,7 @@ $("key").onchange=e=>{CFG.key=e.target.value.trim();saveCfg()};
 $("force").onchange=e=>{CFG.force=e.target.checked;saveCfg()};
 const mf={"m-on":"emailOn","m-svc":"emailSvc","m-tpl":"emailTpl","m-pub":"emailPub","m-to":"emailTo"};
 Object.entries(mf).forEach(([id,k])=>{const el=$(id),cb=el.type==="checkbox";cb?el.checked=!!CFG[k]:el.value=CFG[k]||"";el.onchange=()=>{CFG[k]=cb?el.checked:el.value.trim();sv("_cfg",CFG)}});
+if(location.hash==="#config")$("mail-panel").classList.remove("hidden");
 applyCfg();renderSignals();calcChange();refreshMarket();
 </script>
 </body>
