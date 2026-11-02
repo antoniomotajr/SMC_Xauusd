@@ -156,7 +156,7 @@ function sess(){const h=ny().min/60;
 // ================= PERFIL DE ESTRATÉGIA =================
 // Ajusta limiar de score, stop (xATR) e RR conforme janela de mercado.
 function getProfile(){const now=Date.now(),{s,kz}=sess();
-  let p={name:"NEUTRO",min:75,sl:1.2,rr:2,allow:true,note:"Sem janela especial: exige confluência alta (≥75)."};
+  let p={name:"NEUTRO",min:60,sl:1.2,rr:2,allow:true,note:"Sem janela especial: exige confluência moderada (≥60)."};
   if(!S.open)return{...p,name:"BLOQUEADO",allow:false,note:"Mercado fechado ou feed sem dados: nenhuma entrada."};
   if(!schedOpen(new Date(now+9e5)))return{...p,name:"FECHAMENTO",allow:false,note:"Mercado fecha/pausa em <15 min: sem novas entradas."};
   if(!schedOpen(new Date(now-18e5)))p={name:"CAUTELA · ABERTURA",min:85,sl:1.8,rr:2,allow:true,note:"Primeiros 30 min após abertura: gaps e spread alto. Score ≥85 e stop 1.8×ATR."};
